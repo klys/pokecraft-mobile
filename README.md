@@ -197,14 +197,16 @@ produces a **debug APK**. Pull requests upload it as a build artifact
 also publish a GitHub prerelease with that APK attached.
 
 Optional repository secrets:
-You can either set `MOBILE_CONFIG_JSON` directly, or set the backend and asset
-storage URLs separately as repository secrets or variables.
+By default CI builds against `https://venova-alpha-backend.adventurex.games` and
+streams assets from `https://venova-2022-assets.adventurex.games`. Override
+those defaults with `MOBILE_CONFIG_JSON`, or set the backend and asset storage
+URLs separately as repository secrets or variables.
 
 | Secret | Purpose |
 | --- | --- |
 | `MOBILE_CONFIG_JSON` | Contents of `config.json`, either as JSON or dotenv-style lines. Should set `backendUrl` / `BACKEND_URL` and `assetsBaseUrl` / `ASSET_STORAGE_BASE_URL`, and keep `assetStorageBaseUrl` empty, e.g. `{"backendUrl":"https://…","assetsBaseUrl":"https://assets.pokecraft.klys.dev","assetStorageBaseUrl":""}` or two lines: `BACKEND_URL=https://…` and `ASSET_STORAGE_BASE_URL=https://assets.pokecraft.klys.dev`. Required because mobile builds don't bundle the assets. |
-| `MOBILE_BACKEND_URL` / `BACKEND_URL` | Socket.IO server URL. Used only when `MOBILE_CONFIG_JSON` is not set. Can be a repository secret or variable. |
-| `MOBILE_ASSET_STORAGE_BASE_URL` / `ASSET_STORAGE_BASE_URL` | Asset-storage origin. Used only when `MOBILE_CONFIG_JSON` is not set. Can be a repository secret or variable. |
+| `MOBILE_BACKEND_URL` / `BACKEND_URL` | Socket.IO server URL. Used only when `MOBILE_CONFIG_JSON` is not set. Can be a repository secret or variable. Defaults to the Venova alpha backend. |
+| `MOBILE_ASSET_STORAGE_BASE_URL` / `ASSET_STORAGE_BASE_URL` | Asset-storage origin. Used only when `MOBILE_CONFIG_JSON` is not set. Can be a repository secret or variable. Defaults to the Venova 2022 asset host. |
 | `WEB_REPO_TOKEN` | PAT to read `client-poke.io` if you make it **private**. Not needed while it's public. |
 
 ### Store release / signing (later)
