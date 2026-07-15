@@ -6,9 +6,14 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      APK_SOURCE_PATH: android/app/build/outputs/apk/debug/app-debug.apk
 
     steps:
       - name: Checkout mobile wrapper
@@ -63,9 +68,46 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --stacktrace
 
+      - name: Package APK
+        id: package
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          APK_NAME="pokecraft-debug-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}-${SHORT_SHA}.apk"
+          APK_PATH="build/release/${APK_NAME}"
+
+          mkdir -p build/release
+          cp "$APK_SOURCE_PATH" "$APK_PATH"
+
+          echo "apk_name=$APK_NAME" >> "$GITHUB_OUTPUT"
+          echo "apk_path=$APK_PATH" >> "$GITHUB_OUTPUT"
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: pokecraft-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: ${{ steps.package.outputs.apk_path }}
           if-no-files-found: error
+
+      - name: Prepare release metadata
+        id: release
+        if: github.event_name != 'pull_request'
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          SHORT_SHA="${GITHUB_SHA::7}"
+          TAG="android-v${VERSION}-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}"
+          TITLE="PokeCraft Android v${VERSION} (${SHORT_SHA})"
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "title=$TITLE" >> "$GITHUB_OUTPUT"
+
+      - name: Publish GitHub Release
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.release.outputs.tag }}" "${{ steps.package.outputs.apk_path }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "${{ steps.release.outputs.title }}" \
+            --notes "Debug APK built from commit ${GITHUB_SHA}." \
+            --prerelease

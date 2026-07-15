@@ -187,8 +187,9 @@ must be set for every mobile build.
 
 [`.github/workflows/android.yml`](.github/workflows/android.yml) checks out this
 repo **and** `klys/client-poke.io`, builds the web bundle, runs `cap sync`, and
-produces a **debug APK** as a build artifact (`pokecraft-debug-apk`). It runs on
-push to `main`/`master` and via **Run workflow** (manual dispatch).
+produces a **debug APK**. Pull requests upload it as a build artifact
+(`pokecraft-debug-apk`); pushes to `main`/`master` and **Run workflow** builds
+also publish a GitHub prerelease with that APK attached.
 
 Optional repository secrets:
 
@@ -197,8 +198,8 @@ Optional repository secrets:
 | `MOBILE_CONFIG_JSON` | Contents of `config.json`. Should set `backendUrl` (Socket.IO server) and `assetsBaseUrl` (the asset-storage server), and keep `assetStorageBaseUrl` empty, e.g. `{"backendUrl":"https://…","assetsBaseUrl":"https://assets.pokecraft.klys.dev","assetStorageBaseUrl":""}`. Required because mobile builds don't bundle the assets. |
 | `WEB_REPO_TOKEN` | PAT to read `client-poke.io` if you make it **private**. Not needed while it's public. |
 
-### Release / signing (later)
+### Store release / signing (later)
 
-The current CI builds an unsigned-for-store **debug** APK (debug-keystore signed,
-installable for testing). To ship to Play, add a release keystore + secrets and a
-`assembleRelease` step — intentionally left out for now.
+The current CI release is still an unsigned-for-store **debug** APK
+(debug-keystore signed, installable for testing). To ship to Play, add a release
+keystore + secrets and a `assembleRelease` step — intentionally left out for now.
