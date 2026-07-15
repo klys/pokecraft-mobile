@@ -1,0 +1,29 @@
+# Dependencies
+/node_modules
+
+# Generated web bundle (produced by scripts/build-web.sh). The placeholder
+# index.html is kept so Capacitor commands work on a fresh clone.
+/www/*
+!/www/index.html
+
+# APK output from scripts/docker-build.sh
+/build
+
+# Capacitor / Android build artifacts
+/android/app/build
+/android/build
+/android/.gradle
+/android/captures
+/android/local.properties
+/android/app/src/main/assets/public
+/android/app/src/main/assets/capacitor.config.json
+/android/app/src/main/assets/capacitor.plugins.json
+
+# Signing (never commit keystores or their passwords)
+*.keystore
+*.jks
+keystore.properties
+
+# Misc
+.DS_Store
+*.log

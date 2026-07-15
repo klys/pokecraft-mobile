@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  DEBUG builds only. Permits cleartext (HTTP) traffic so the app can talk to a
+  local dev server such as http://<LAN-IP>:3001. Release builds do not include
+  this file and therefore keep Android's default (cleartext blocked).
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

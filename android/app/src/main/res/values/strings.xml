@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">PokeCraft</string>
+    <string name="title_activity_main">PokeCraft</string>
+    <string name="package_name">dev.klys.pokecraft</string>
+    <string name="custom_url_scheme">dev.klys.pokecraft</string>
+</resources>

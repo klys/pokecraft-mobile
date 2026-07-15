@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+#
+# Builds the PokeCraft Android debug APK entirely in Docker (no local Android
+# SDK required) and drops it in ./build/pokecraft-debug.apk.
+#
+# By default the APK is configured to talk to the dev server on THIS computer's
+# LAN IP (http://<LAN-IP>:3001), so a phone on the same Wi-Fi can connect to the
+# `docker compose up` stack.
+#
+# Environment overrides:
+#   HOST_IP        LAN IP to bake into the app. Default: this machine's primary IP.
+#   BACKEND_PORT   server-poke.io port. Default: 3001.
+#   BACKEND_URL    Full backend URL. Overrides HOST_IP/BACKEND_PORT if set.
+#   WEB_SRC        Path to the client-poke.io checkout. Default: ../client-poke.io
+#
+set -euo pipefail
+
+MOBILE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+DOCKERFILE="$MOBILE_DIR/docker/Dockerfile"
+OUT_DIR="$MOBILE_DIR/build"
+WEB_SRC="${WEB_SRC:-$MOBILE_DIR/../client-poke.io}"
+
+if ! command -v docker >/dev/null 2>&1; then
+  echo "error: docker is not installed or not on PATH." >&2
+  exit 1
+fi
+if [ ! -d "$WEB_SRC" ]; then
+  echo "error: web source not found at '$WEB_SRC' (set WEB_SRC)." >&2
+  exit 1
+fi
+WEB_SRC="$(cd "$WEB_SRC" && pwd)"
+
+# Resolve the backend (Socket.IO) and asset-storage URLs the app points at.
+# Game assets (/migration_exports, /map-assets, sprites) are streamed from
+# ASSET_STORAGE_BASE_URL — the standalone asset-storage nginx server
+# (:8090 in the dev stack, see ../asset-storage).
+BACKEND_PORT="${BACKEND_PORT:-3001}"
+ASSET_STORAGE_PORT="${ASSET_STORAGE_PORT:-8090}"
+if [ -z "${BACKEND_URL:-}" ] || [ -z "${ASSET_STORAGE_BASE_URL:-}" ]; then
+  HOST_IP="${HOST_IP:-$(ip route get 1.1.1.1 2>/dev/null | grep -oP 'src \K[0-9.]+' | head -1)}"
+  if [ -z "${HOST_IP:-}" ]; then
+    HOST_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+  fi
+  if [ -z "${HOST_IP:-}" ]; then
+    echo "error: could not detect this machine's LAN IP. Set HOST_IP (or BACKEND_URL + ASSET_STORAGE_BASE_URL)." >&2
+    exit 1
+  fi
+fi
+BACKEND_URL="${BACKEND_URL:-http://${HOST_IP}:${BACKEND_PORT}}"
+ASSET_STORAGE_BASE_URL="${ASSET_STORAGE_BASE_URL:-http://${HOST_IP}:${ASSET_STORAGE_PORT}}"
+
+echo "==> Web source : $WEB_SRC"
+echo "==> Backend URL: $BACKEND_URL"
+echo "==> Asset URL  : $ASSET_STORAGE_BASE_URL   (streams game assets from here)"
+echo "==> Output dir : $OUT_DIR"
+echo
+
+mkdir -p "$OUT_DIR"
+
+DOCKER_BUILDKIT=1 docker buildx build \
+  --build-context "web=$WEB_SRC" \
+  --build-arg "BACKEND_URL=$BACKEND_URL" \
+  --build-arg "ASSET_STORAGE_BASE_URL=$ASSET_STORAGE_BASE_URL" \
+  --target export \
+  --output "type=local,dest=$OUT_DIR" \
+  -f "$DOCKERFILE" \
+  "$MOBILE_DIR"
+
+echo
+echo "==> APK ready: $OUT_DIR/pokecraft-debug.apk"
+echo
+echo "Install it on a phone connected via USB (adb):"
+echo "    adb install -r \"$OUT_DIR/pokecraft-debug.apk\""
+echo
+echo "For the app to reach this computer, make sure:"
+echo "  1. The dev stack is up:  docker compose up -d"
+echo "       - server-poke.io (Socket.IO) on :$BACKEND_PORT   -> $BACKEND_URL"
+echo "       - asset-storage (nginx, serves game assets) on :$ASSET_STORAGE_PORT -> $ASSET_STORAGE_BASE_URL"
+echo "  2. The phone is on the SAME Wi-Fi / LAN as this computer."
+echo "  3. This computer's firewall allows inbound TCP $BACKEND_PORT and $ASSET_STORAGE_PORT."
+echo "  4. The server allows the app origin 'https://localhost' in CLIENT_ORIGIN"
+echo "     (already added to server-poke.io/index.ts defaults)."

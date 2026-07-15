@@ -1,0 +1,15 @@
+node_modules
+www
+build
+.git
+.gitignore
+README.md
+*.log
+android/.gradle
+android/build
+android/app/build
+android/capacitor-cordova-android-plugins/build
+android/app/src/main/assets/public
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+android/local.properties

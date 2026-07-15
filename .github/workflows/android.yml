@@ -1,0 +1,71 @@
+name: Android Build
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout mobile wrapper
+        uses: actions/checkout@v4
+
+      # The web client lives in a separate repo. It is public, so the default
+      # GITHUB_TOKEN can read it; set a WEB_REPO_TOKEN secret (PAT) if you make
+      # it private.
+      - name: Checkout web client (client-poke.io)
+        uses: actions/checkout@v4
+        with:
+          repository: klys/client-poke.io
+          ref: master
+          path: web-src
+          token: ${{ secrets.WEB_REPO_TOKEN || github.token }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Install mobile dependencies
+        run: npm ci
+
+      # Builds client-poke.io and copies the bundle into ./www. If the
+      # MOBILE_CONFIG_JSON secret is set it overrides the backend URL;
+      # otherwise the web client falls back to its built-in default backend.
+      - name: Build web client into www/
+        env:
+          WEB_SRC: ${{ github.workspace }}/web-src
+          CONFIG_JSON: ${{ secrets.MOBILE_CONFIG_JSON }}
+        run: npm run build:web
+
+      - name: Capacitor sync
+        run: npx cap sync android
+
+      - name: Build debug APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: pokecraft-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
