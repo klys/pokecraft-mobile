@@ -202,7 +202,7 @@ storage URLs separately as repository secrets or variables.
 
 | Secret | Purpose |
 | --- | --- |
-| `MOBILE_CONFIG_JSON` | Contents of `config.json`. Should set `backendUrl` (Socket.IO server) and `assetsBaseUrl` (the asset-storage server), and keep `assetStorageBaseUrl` empty, e.g. `{"backendUrl":"https://…","assetsBaseUrl":"https://assets.pokecraft.klys.dev","assetStorageBaseUrl":""}`. Required because mobile builds don't bundle the assets. |
+| `MOBILE_CONFIG_JSON` | Contents of `config.json`, either as JSON or dotenv-style lines. Should set `backendUrl` / `BACKEND_URL` and `assetsBaseUrl` / `ASSET_STORAGE_BASE_URL`, and keep `assetStorageBaseUrl` empty, e.g. `{"backendUrl":"https://…","assetsBaseUrl":"https://assets.pokecraft.klys.dev","assetStorageBaseUrl":""}` or two lines: `BACKEND_URL=https://…` and `ASSET_STORAGE_BASE_URL=https://assets.pokecraft.klys.dev`. Required because mobile builds don't bundle the assets. |
 | `MOBILE_BACKEND_URL` / `BACKEND_URL` | Socket.IO server URL. Used only when `MOBILE_CONFIG_JSON` is not set. Can be a repository secret or variable. |
 | `MOBILE_ASSET_STORAGE_BASE_URL` / `ASSET_STORAGE_BASE_URL` | Asset-storage origin. Used only when `MOBILE_CONFIG_JSON` is not set. Can be a repository secret or variable. |
 | `WEB_REPO_TOKEN` | PAT to read `client-poke.io` if you make it **private**. Not needed while it's public. |
