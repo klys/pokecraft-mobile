@@ -4,7 +4,8 @@
 # needed). Driven by scripts/docker-build.sh, which supplies:
 #   - primary build context  = client-mobile/           (this folder)
 #   - named build context    = web  -> ../client-poke.io
-#   - --build-arg BACKEND_URL = http://<LAN-IP>:3001    (optional)
+#   - --build-arg BACKEND_URL = http://<LAN-IP>:3001
+#   - --build-arg ASSET_STORAGE_BASE_URL = http://<LAN-IP>:8090
 #
 # Output: a debug APK, exported to ./build/ by the wrapper script.
 
@@ -22,12 +23,12 @@ ARG BACKEND_URL=""
 # origin-relative and AssetProxyWebViewClient intercepts them (no
 # mixed-content/CORS in the WebView).
 ARG ASSET_STORAGE_BASE_URL=""
-RUN if [ -n "$BACKEND_URL" ] || [ -n "$ASSET_STORAGE_BASE_URL" ]; then \
-      printf '{"backendUrl":"%s","assetsBaseUrl":"%s","assetStorageBaseUrl":""}' "$BACKEND_URL" "$ASSET_STORAGE_BASE_URL" > public/config.json ; \
-      echo "web build -> backend '$BACKEND_URL', asset storage '$ASSET_STORAGE_BASE_URL'" ; \
-    else \
-      echo "web build -> using client default backend" ; \
-    fi
+RUN if [ -z "$BACKEND_URL" ] || [ -z "$ASSET_STORAGE_BASE_URL" ]; then \
+      echo "error: BACKEND_URL and ASSET_STORAGE_BASE_URL build args are required for mobile builds." >&2 ; \
+      exit 1 ; \
+    fi ; \
+    node -e 'const fs=require("fs"); const [backendUrl, assetsBaseUrl]=process.argv.slice(1); fs.writeFileSync("public/config.json", JSON.stringify({ backendUrl, assetsBaseUrl, assetStorageBaseUrl: "" }, null, 2) + "\n");' "$BACKEND_URL" "$ASSET_STORAGE_BASE_URL" ; \
+    echo "web build -> backend '$BACKEND_URL', asset storage '$ASSET_STORAGE_BASE_URL'"
 RUN npm run build
 # Heavy assets are streamed from the host at runtime (see AssetProxyWebViewClient),
 # so drop them from the bundle to keep the APK small (~300MB -> ~11MB).

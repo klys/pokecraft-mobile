@@ -50,13 +50,15 @@ jobs:
       - name: Install mobile dependencies
         run: npm ci
 
-      # Builds client-poke.io and copies the bundle into ./www. If the
-      # MOBILE_CONFIG_JSON secret is set it overrides the backend URL;
-      # otherwise the web client falls back to its built-in default backend.
+      # Builds client-poke.io and copies the bundle into ./www. Provide either
+      # MOBILE_CONFIG_JSON or BACKEND_URL + ASSET_STORAGE_BASE_URL so the APK
+      # can reach the server and native asset proxy upstream.
       - name: Build web client into www/
         env:
           WEB_SRC: ${{ github.workspace }}/web-src
           CONFIG_JSON: ${{ secrets.MOBILE_CONFIG_JSON }}
+          BACKEND_URL: ${{ secrets.MOBILE_BACKEND_URL || vars.MOBILE_BACKEND_URL || secrets.BACKEND_URL || vars.BACKEND_URL }}
+          ASSET_STORAGE_BASE_URL: ${{ secrets.MOBILE_ASSET_STORAGE_BASE_URL || vars.MOBILE_ASSET_STORAGE_BASE_URL || secrets.ASSET_STORAGE_BASE_URL || vars.ASSET_STORAGE_BASE_URL }}
         run: npm run build:web
 
       - name: Capacitor sync

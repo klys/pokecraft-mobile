@@ -55,9 +55,12 @@ Point at a web checkout elsewhere, or override the backend URL:
 
 ```bash
 WEB_SRC=/path/to/client-poke.io \
-CONFIG_JSON='{"backendUrl":"https://pokecraft-staging-0.klys.dev"}' \
+CONFIG_JSON='{"backendUrl":"https://pokecraft-staging-0.klys.dev","assetsBaseUrl":"https://assets.pokecraft.klys.dev","assetStorageBaseUrl":""}' \
 npm run build:web
 ```
+
+`scripts/build-web.sh` and `scripts/docker-build.sh` also load `client-mobile/.env`
+automatically. Values exported in your shell still win over `.env`.
 
 ## Gamepad support
 
@@ -133,7 +136,9 @@ Override the target backend if auto-detection isn't what you want:
 ```bash
 HOST_IP=192.168.1.50 ./scripts/docker-build.sh          # different IP
 BACKEND_PORT=3002 ./scripts/docker-build.sh             # different port
-BACKEND_URL=https://pokecraft-staging-0.klys.dev ./scripts/docker-build.sh
+BACKEND_URL=https://pokecraft-staging-0.klys.dev \
+ASSET_STORAGE_BASE_URL=https://assets.pokecraft.klys.dev \
+./scripts/docker-build.sh
 ```
 
 For the phone to actually reach your machine, all of these must hold:
@@ -192,10 +197,14 @@ produces a **debug APK**. Pull requests upload it as a build artifact
 also publish a GitHub prerelease with that APK attached.
 
 Optional repository secrets:
+You can either set `MOBILE_CONFIG_JSON` directly, or set the backend and asset
+storage URLs separately as repository secrets or variables.
 
 | Secret | Purpose |
 | --- | --- |
 | `MOBILE_CONFIG_JSON` | Contents of `config.json`. Should set `backendUrl` (Socket.IO server) and `assetsBaseUrl` (the asset-storage server), and keep `assetStorageBaseUrl` empty, e.g. `{"backendUrl":"https://…","assetsBaseUrl":"https://assets.pokecraft.klys.dev","assetStorageBaseUrl":""}`. Required because mobile builds don't bundle the assets. |
+| `MOBILE_BACKEND_URL` / `BACKEND_URL` | Socket.IO server URL. Used only when `MOBILE_CONFIG_JSON` is not set. Can be a repository secret or variable. |
+| `MOBILE_ASSET_STORAGE_BASE_URL` / `ASSET_STORAGE_BASE_URL` | Asset-storage origin. Used only when `MOBILE_CONFIG_JSON` is not set. Can be a repository secret or variable. |
 | `WEB_REPO_TOKEN` | PAT to read `client-poke.io` if you make it **private**. Not needed while it's public. |
 
 ### Store release / signing (later)

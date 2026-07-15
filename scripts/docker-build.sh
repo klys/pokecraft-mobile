@@ -11,11 +11,48 @@
 #   HOST_IP        LAN IP to bake into the app. Default: this machine's primary IP.
 #   BACKEND_PORT   server-poke.io port. Default: 3001.
 #   BACKEND_URL    Full backend URL. Overrides HOST_IP/BACKEND_PORT if set.
+#   ASSET_STORAGE_PORT       asset-storage port. Default: 8090.
+#   ASSET_STORAGE_BASE_URL   Full asset-storage URL. Overrides HOST_IP/ASSET_STORAGE_PORT if set.
 #   WEB_SRC        Path to the client-poke.io checkout. Default: ../client-poke.io
 #
 set -euo pipefail
 
 MOBILE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+load_env_file() {
+  local env_file="$MOBILE_DIR/.env"
+  local line key value
+
+  [ -f "$env_file" ] || return 0
+
+  while IFS= read -r line || [ -n "$line" ]; do
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+    [ -z "$line" ] && continue
+    [[ "$line" == \#* ]] && continue
+    [[ "$line" == export\ * ]] && line="${line#export }"
+    [[ "$line" == *=* ]] || continue
+
+    key="${line%%=*}"
+    value="${line#*=}"
+    key="${key%"${key##*[![:space:]]}"}"
+    value="${value#"${value%%[![:space:]]*}"}"
+
+    [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
+    [ -z "${!key+x}" ] || continue
+
+    if [[ "$value" == \"*\" && "$value" == *\" ]]; then
+      value="${value:1:${#value}-2}"
+    elif [[ "$value" == \'*\' && "$value" == *\' ]]; then
+      value="${value:1:${#value}-2}"
+    fi
+
+    export "$key=$value"
+  done < "$env_file"
+}
+
+load_env_file
+
 DOCKERFILE="$MOBILE_DIR/docker/Dockerfile"
 OUT_DIR="$MOBILE_DIR/build"
 WEB_SRC="${WEB_SRC:-$MOBILE_DIR/../client-poke.io}"
