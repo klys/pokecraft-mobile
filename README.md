@@ -152,22 +152,25 @@ For the phone to actually reach your machine, all of these must hold:
   (`android/app/src/debug/…/network_security_config.xml`) and the WebView allows
   mixed content. Release builds keep cleartext blocked.
 
-## Asset streaming (small APK)
+## Bundled assets (offline-first APK)
 
 The game content (`migration_exports/` battle GIFs, BGM/audio, event pictures,
 pokémon animations, plus `map-assets/`, `character0/` and the other sprites —
-~360 MB) lives in the standalone `../asset-storage` nginx server and is **not
-bundled** in the APK (~11 MB instead of ~300 MB).
+~360 MB) is **bundled inside the APK** by the Docker build (copied from
+`../asset-storage/assets` into `www/`), together with a snapshot of the shared
+game data (`www/bundled-data/`: the playable-maps payload and the public
+designer sections, produced by
+`../server-poke.io/tools/export-bundled-data.sh`). The app plays from this
+local cache: the web client seeds its data caches from `/bundled-data/` at
+startup and reports its platform in the Socket.IO handshake, so the server
+answers with version payloads instead of streaming the multi-MB states.
 
-At runtime a native WebView proxy
+Content **newer than the bundle** still loads: the native WebView proxy
 ([`AssetProxyWebViewClient.java`](android/app/src/main/java/dev/klys/pokecraft/AssetProxyWebViewClient.java),
-installed in `MainActivity`) intercepts requests the WebView makes to
-`https://localhost/migration_exports/...` (and the other asset prefixes) and
-streams them from `assetsBaseUrl` (from `config.json`). Because the bytes come
-back on the app's own origin, every existing `<img>`/`<audio>`/`fetch`
-reference works unchanged, with no CORS or mixed-content issues. The WebView
-caches responses, so repeat loads are fast; there is no separate first-launch
-download step.
+installed in `MainActivity`) serves bundled paths from the APK and streams
+only the misses from `assetsBaseUrl` (from `config.json`). Because the bytes
+come back on the app's own origin, every existing `<img>`/`<audio>`/`fetch`
+reference works unchanged, with no CORS or mixed-content issues.
 
 Two config keys matter in the bundled `config.json`:
 

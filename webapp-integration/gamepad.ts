@@ -1,10 +1,16 @@
 /**
- * gamepad.ts — drop-in Web Gamepad helper for the PokeCraft web client.
+ * gamepad.ts — original Web Gamepad helper sketch (SUPERSEDED, kept for reference).
  *
- * This file is meant to be copied into the client-poke.io React app (e.g.
- * src/input/gamepad.ts). It uses ONLY the standard Web Gamepad API, which is
- * available in the Android System WebView that Capacitor runs, as well as in
- * desktop Chromium/Firefox — so the same code powers web and Android builds.
+ * This helper was never wired into the app, which is why controllers used to
+ * hide the on-screen pad and then do nothing. The real integration now lives
+ * in the client-poke.io source and ships inside the web bundle this app wraps:
+ *
+ *   client-poke.io/src/input/gamepadConfig.ts        settings + action/key map
+ *   client-poke.io/src/components/game/GamepadControls.tsx  poll loop -> key events
+ *   client-poke.io/src/components/ux/auth/GamepadSettings.tsx  Settings UI
+ *
+ * It uses ONLY the standard Web Gamepad API, which is available in the Android
+ * System WebView that Capacitor runs, as well as in desktop Chromium/Firefox.
  *
  * Usage:
  *

@@ -3,9 +3,17 @@
 # Builds the PokeCraft Android APK end-to-end in Docker (no local Android SDK
 # needed). Driven by scripts/docker-build.sh, which supplies:
 #   - primary build context  = client-mobile/           (this folder)
-#   - named build context    = web  -> ../client-poke.io
+#   - named build context    = web         -> ../client-poke.io
+#   - named build context    = assets      -> ../asset-storage/assets
+#   - named build context    = bundleddata -> ./bundled-data (export-bundled-data.sh output)
 #   - --build-arg BACKEND_URL = http://<LAN-IP>:3001
 #   - --build-arg ASSET_STORAGE_BASE_URL = http://<LAN-IP>:8090
+#
+# The APK ships the full asset-storage media plus the shared data snapshots
+# (playable maps + public designer sections) inside www/, so the app plays
+# from its local cache; the remote asset host and the realtime server are only
+# used for content that is newer than the bundle (AssetProxyWebViewClient
+# serves bundled paths locally and proxies only misses).
 #
 # Output: a debug APK, exported to ./build/ by the wrapper script.
 
@@ -30,8 +38,8 @@ RUN if [ -z "$BACKEND_URL" ] || [ -z "$ASSET_STORAGE_BASE_URL" ]; then \
     node -e 'const fs=require("fs"); const [backendUrl, assetsBaseUrl]=process.argv.slice(1); fs.writeFileSync("public/config.json", JSON.stringify({ backendUrl, assetsBaseUrl, assetStorageBaseUrl: "" }, null, 2) + "\n");' "$BACKEND_URL" "$ASSET_STORAGE_BASE_URL" ; \
     echo "web build -> backend '$BACKEND_URL', asset storage '$ASSET_STORAGE_BASE_URL'"
 RUN npm run build
-# Heavy assets are streamed from the host at runtime (see AssetProxyWebViewClient),
-# so drop them from the bundle to keep the APK small (~300MB -> ~11MB).
+# Drop any stale copy from the web checkout; the authoritative media comes
+# from the `assets` build context and is layered into www/ below.
 RUN rm -rf build/migration_exports
 
 # ---- 2. Build the Android APK -----------------------------------------------
@@ -68,6 +76,12 @@ COPY . .
 # Replace the placeholder www/ with the compiled web client from stage 1.
 RUN rm -rf www
 COPY --from=webbuild /web/build ./www
+# Bundle the asset-storage media (same layout nginx serves at /) and the
+# shared data snapshots into the app. Capacitor serves www/ from the app
+# origin, so /migration_exports/..., /map-assets/... and
+# /bundled-data/... resolve locally without touching the network.
+COPY --from=assets . ./www/
+COPY --from=bundleddata . ./www/bundled-data/
 
 RUN npx cap sync android
 RUN --mount=type=cache,target=/root/.gradle \

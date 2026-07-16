@@ -1,5 +1,6 @@
 package dev.klys.pokecraft;
 
+import android.content.res.AssetManager;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebView;
@@ -14,14 +15,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Streams heavy game assets from a remote host instead of bundling them in the
- * APK. Requests the WebView makes to the app origin (https://localhost) for a
- * proxied path — e.g. /migration_exports/... — are fetched from `assetHost`
- * and returned transparently. Because the bytes are served back on the app's
- * own origin, all existing <img>/<audio>/fetch references keep working with no
- * web-side changes, and there is no CORS/mixed-content concern.
+ * Serves heavy game assets local-first: builds that bundle the asset-storage
+ * media inside the APK (under www/, i.e. APK assets "public/...") answer
+ * asset requests from the bundle via Capacitor's normal local handling; only
+ * paths missing from the bundle (e.g. content added after the app shipped)
+ * are streamed from the remote `assetHost` and returned transparently.
+ * Because remote bytes come back on the app's own origin, all existing
+ * <img>/<audio>/fetch references keep working with no web-side changes, and
+ * there is no CORS/mixed-content concern.
  *
  * Everything else falls through to Capacitor's normal asset handling.
  */
@@ -48,10 +52,15 @@ public class AssetProxyWebViewClient extends BridgeWebViewClient {
     };
 
     private final String assetHost; // e.g. "http://192.168.1.10:8090" (no trailing slash)
+    private final AssetManager assetManager;
+    // Bundled-presence lookups hit AssetManager.open(); memoize per path so
+    // repeated references (tiles, frames) don't re-probe the APK.
+    private final Map<String, Boolean> bundledPathCache = new ConcurrentHashMap<>();
 
     public AssetProxyWebViewClient(Bridge bridge, String assetHost) {
         super(bridge);
         this.assetHost = assetHost == null ? "" : assetHost.replaceAll("/+$", "");
+        this.assetManager = bridge.getContext().getAssets();
     }
 
     @Override
@@ -61,6 +70,28 @@ public class AssetProxyWebViewClient extends BridgeWebViewClient {
             return proxied;
         }
         return super.shouldInterceptRequest(view, request);
+    }
+
+    /**
+     * True when the path exists inside the APK bundle (Capacitor packages
+     * www/ as APK assets under "public/"). Bundled files are served by the
+     * default local handler instead of the remote proxy.
+     */
+    private boolean isBundled(String path) {
+        Boolean cached = bundledPathCache.get(path);
+        if (cached != null) {
+            return cached;
+        }
+
+        boolean exists;
+        try (InputStream ignored = assetManager.open("public" + path)) {
+            exists = true;
+        } catch (Exception e) {
+            exists = false;
+        }
+
+        bundledPathCache.put(path, exists);
+        return exists;
     }
 
     private static boolean isProxiedPath(String path) {
@@ -86,6 +117,10 @@ public class AssetProxyWebViewClient extends BridgeWebViewClient {
         }
         String path = request.getUrl().getPath();
         if (path == null || !isProxiedPath(path)) {
+            return null;
+        }
+        if (isBundled(path)) {
+            // Present in the APK bundle: let Capacitor's local server serve it.
             return null;
         }
 

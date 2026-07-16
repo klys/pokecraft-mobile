@@ -86,16 +86,39 @@ fi
 BACKEND_URL="${BACKEND_URL:-http://${HOST_IP}:${BACKEND_PORT}}"
 ASSET_STORAGE_BASE_URL="${ASSET_STORAGE_BASE_URL:-http://${HOST_IP}:${ASSET_STORAGE_PORT}}"
 
-echo "==> Web source : $WEB_SRC"
-echo "==> Backend URL: $BACKEND_URL"
-echo "==> Asset URL  : $ASSET_STORAGE_BASE_URL   (streams game assets from here)"
-echo "==> Output dir : $OUT_DIR"
+# The APK bundles the asset-storage media and the shared data snapshots so
+# the app plays from its local cache (the remote hosts serve only content
+# newer than the bundle).
+ASSETS_SRC="${ASSETS_SRC:-$MOBILE_DIR/../asset-storage/assets}"
+BUNDLED_DATA_DIR="${BUNDLED_DATA_DIR:-$MOBILE_DIR/bundled-data}"
+
+if [ ! -d "$ASSETS_SRC" ]; then
+  echo "error: asset-storage assets not found at '$ASSETS_SRC' (set ASSETS_SRC)." >&2
+  exit 1
+fi
+if [ ! -d "$BUNDLED_DATA_DIR" ] || [ ! -f "$BUNDLED_DATA_DIR/playable-maps.json" ]; then
+  echo "error: bundled data not found at '$BUNDLED_DATA_DIR'." >&2
+  echo "       Generate it with ../server-poke.io/tools/export-bundled-data.sh \"$BUNDLED_DATA_DIR\"" >&2
+  echo "       (needs a running server-poke.io; set SERVER_URL to point at it)." >&2
+  exit 1
+fi
+ASSETS_SRC="$(cd "$ASSETS_SRC" && pwd)"
+BUNDLED_DATA_DIR="$(cd "$BUNDLED_DATA_DIR" && pwd)"
+
+echo "==> Web source  : $WEB_SRC"
+echo "==> Backend URL : $BACKEND_URL"
+echo "==> Asset URL   : $ASSET_STORAGE_BASE_URL   (fallback for content newer than the bundle)"
+echo "==> Bundled media: $ASSETS_SRC ($(du -sh "$ASSETS_SRC" | cut -f1))"
+echo "==> Bundled data : $BUNDLED_DATA_DIR ($(du -sh "$BUNDLED_DATA_DIR" | cut -f1))"
+echo "==> Output dir  : $OUT_DIR"
 echo
 
 mkdir -p "$OUT_DIR"
 
 DOCKER_BUILDKIT=1 docker buildx build \
   --build-context "web=$WEB_SRC" \
+  --build-context "assets=$ASSETS_SRC" \
+  --build-context "bundleddata=$BUNDLED_DATA_DIR" \
   --build-arg "BACKEND_URL=$BACKEND_URL" \
   --build-arg "ASSET_STORAGE_BASE_URL=$ASSET_STORAGE_BASE_URL" \
   --target export \
